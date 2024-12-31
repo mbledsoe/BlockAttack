@@ -9,4 +9,4 @@ steps:
   inputs:
     skip_app_build: true
     skip_api_build: true
-    azure_access_token: '$(DeploymentToken)'
+    azure_static_web_apps_api_token: '$(DeploymentToken)'
