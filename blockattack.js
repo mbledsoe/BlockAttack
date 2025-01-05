@@ -5,6 +5,9 @@ class BlockAttack {
     height = 800;
     blockSize = 80;
 
+    lastBlockMoveTimestamp = 0;
+    blockPositionX = 0;
+
     constructor(canvas) {
         this.canvas = canvas;        
     }    
@@ -13,10 +16,29 @@ class BlockAttack {
         this.canvas.setAttribute('width', this.width);
         this.canvas.setAttribute('height', this.height);
 
-        setTimeout(() => this.drawFrame(0), 0);
+        window.requestAnimationFrame((timestamp) => this.tick(timestamp));
     }
 
-    drawFrame(gridX) {        
+    tick(timestamp) {        
+        this.updateState(timestamp);
+        this.drawFrame();        
+    }
+
+    updateState(timestamp) {      
+        if (this.lastBlockMoveTimestamp == 0) {
+            this.lastBlockMoveTimestamp = timestamp;
+        }
+
+        // milliseconds since the lastBlockMoveTimestamp
+        const timeDiff = timestamp - this.lastBlockMoveTimestamp
+        
+        if (timeDiff >= 100) {
+            this.blockPositionX = (this.blockPositionX < 9) ? this.blockPositionX + 1 : 0;
+            this.lastBlockMoveTimestamp = timestamp;
+        }       
+    }
+
+    drawFrame() {
         const ctx = this.canvas.getContext("2d");
 
         // Clear the canvas
@@ -30,11 +52,10 @@ class BlockAttack {
 
         // Draw the current position of the red block
         ctx.fillStyle = "#FF0000";
-        ctx.fillRect(gridX * 80, 0, this.blockSize, this.blockSize);
+        ctx.fillRect(this.blockPositionX * 80, 0, this.blockSize, this.blockSize);
         ctx.strokeStyle = "#000000";
-        ctx.strokeRect(gridX * 80, 0, this.blockSize, this.blockSize);        
+        ctx.strokeRect(this.blockPositionX * 80, 0, this.blockSize, this.blockSize);
 
-        const nextGridX = (gridX < 9) ? gridX + 1 : 0;
-        setTimeout(() => this.drawFrame(nextGridX), 100);
+        window.requestAnimationFrame((timestamp) => this.tick(timestamp));
     }
 }
