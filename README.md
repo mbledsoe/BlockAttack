@@ -1,5 +1,5 @@
 # BlockAttack
-BlockAttack is a Tetris Clone Built with Plain Javascript.  This is an exploratory / demonstration project that I'm using to learn more about game development.  This project is also very new, so it will take time to develop an actual playable game.
+BlockAttack is a Tetris Clone Built with Plain Javascript.  This is an exploratory / demonstration project that I'm using to learn more about game development.  This project is also very new, so it will take time to develop into an actual playable game.
 
 # Blog Series
 I'm writing a companion blog series which follows the development of BlockAttack and documents each incremental update.  You can read it on [My Website](https://mikebledsoe.com/posts).
