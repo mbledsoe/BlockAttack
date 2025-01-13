@@ -1,12 +1,23 @@
 "use strict";
 
+const oShape = {
+    color: "#ffff00",
+    shape: [
+        [1,1],
+        [1,1]
+    ],
+    startPosition: 4
+};
+
 class BlockAttack {
-    width = 800;
+    width = 400;
     height = 800;
-    blockSize = 80;
+    blockSize = 40;
 
     lastBlockMoveTimestamp = 0;
-    blockPositionX = 0;
+        
+    activePiecePosition = { x: oShape.startPosition, y: 0 };
+    activePiece = oShape;
 
     constructor(canvas) {
         this.canvas = canvas;        
@@ -32,10 +43,30 @@ class BlockAttack {
         // milliseconds since the lastBlockMoveTimestamp
         const timeDiff = timestamp - this.lastBlockMoveTimestamp
         
-        if (timeDiff >= 100) {
-            this.blockPositionX = (this.blockPositionX < 9) ? this.blockPositionX + 1 : 0;
+        if (timeDiff >= 500) {
+            if (this.canActivePieceMoveDown()) {
+                this.activePiecePosition.y++;
+            }
+            
             this.lastBlockMoveTimestamp = timestamp;
         }       
+    }
+
+    canActivePieceMoveDown() {
+        // generalize this later
+        let maxShapeY = 0;
+
+        for (let x = 0; x < this.activePiece.shape.length; x++) {
+            const xRow = this.activePiece.shape[x];
+
+            for (let y = 0; y < xRow.length; y++) {
+                if (xRow[y] === 1) {
+                    maxShapeY = y;
+                }
+            }
+        }
+
+        return (maxShapeY + this.activePiecePosition.y) < 19;
     }
 
     drawFrame() {
@@ -43,19 +74,38 @@ class BlockAttack {
 
         // Clear the canvas
         ctx.clearRect(0, 0, this.width, this.height);
-
-        // Draw the black grid strokes
-        for (let i = 0; i < 10; i++) {
-            ctx.strokeStyle = "#000000";
-            ctx.strokeRect(i * 80, 0, this.blockSize, this.blockSize);
+        
+        // Draw the background
+        for (let x = 0; x < 10; x++) {
+            for (let y = 0; y < 20; y++) {
+                this.drawBlock(ctx, x, y, '#666666');
+            }
         }
 
-        // Draw the current position of the red block
-        ctx.fillStyle = "#FF0000";
-        ctx.fillRect(this.blockPositionX * 80, 0, this.blockSize, this.blockSize);
-        ctx.strokeStyle = "#000000";
-        ctx.strokeRect(this.blockPositionX * 80, 0, this.blockSize, this.blockSize);
+        // Draw the active piece        
+        for (let x = 0; x < this.activePiece.shape.length; x++) {
+            var xRow = this.activePiece.shape[x];
+
+            for (let y = 0; y < xRow.length; y++) {
+                this.drawBlock(ctx, 
+                    (this.activePiecePosition.x + x),
+                    (this.activePiecePosition.y + y),
+                    this.activePiece.color
+                );                
+            }
+        }
 
         window.requestAnimationFrame((timestamp) => this.tick(timestamp));
+    }
+
+    drawBlock(ctx, gridX, gridY, colorCode) {
+        ctx.fillStyle = colorCode;
+        ctx.strokeStyle = '#333333';
+
+        const blockX = gridX * this.blockSize;
+        const blockY = gridY * this.blockSize;
+        
+        ctx.fillRect(blockX, blockY, this.blockSize, this.blockSize);
+        ctx.strokeRect(blockX, blockY, this.blockSize, this.blockSize);
     }
 }
