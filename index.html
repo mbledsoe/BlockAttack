@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>BlockAttack!</title>
+    <style>
+        body {
+            background-color: #444;
+        }
+
+        #game {
+            border: solid 10px #222;
+            margin: 1em auto;
+            height: 600px;
+            width: 300px;
+        }
+    </style>
+  </head>
+  <body>
+    <div id="game"></div>
+    <script src="BlockAttack.js"></script>
+    <script>
+        var gameDiv = document.getElementById('game');
+        new BlockAttack(gameDiv).run();
+    </script>
+  </body>
+</html>
