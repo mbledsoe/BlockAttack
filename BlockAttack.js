@@ -1,5 +1,51 @@
 "use strict";
 
+const Shapes = {
+    oShape: {
+        color: 'rgb(255,255,0)',
+        cells: [
+            [true, true],
+            [true, true]
+        ]
+    },
+    iShape:  {
+        color: 'rgb(51,204,255)',
+        cells: [
+            [false, false, false, false],
+            [true, true, true, true],
+            [false, false, false, false],
+            [false, false, false, false]
+        ]
+    },
+    sShape: {
+        color: 'rgb(255,0,0)',
+        cells: [
+            [false, false, true],
+            [false, true, true],
+            [false, true, false]
+        ]
+    }    
+}
+
+class ShapePicker {
+    shapes = [
+        Shapes.oShape,
+        Shapes.iShape,
+        Shapes.sShape
+    ];
+
+    pickRandomShape() {
+        const min = 0;
+        const max = 2;
+
+        const shapeIndex = Math.floor(Math.random() * (max - min + 1)) + min;
+        
+        console.log('shapeIndex', shapeIndex);
+
+        return this.shapes[shapeIndex];
+    }
+}
+
 class Position {
     constructor(col, row) {
         this.col = col;
@@ -40,8 +86,8 @@ class Board {
         for (var col = 0; col < this.columns; col++) {
             this.cells[col] = [];
 
-            for (var row = 0; row < this.row; row++) {
-                this.cells[col][row] = false;
+            for (var row = 0; row < this.rows; row++) {
+                this.cells[col][row] = null;
             }
         }
     }
@@ -51,19 +97,19 @@ class Board {
             && (row >= 0 && row < this.rows);
     }
 
-    setCell(col, row, isOccupied) {
-        this.cells[col][row] = isOccupied;
+    setCell(col, row, color) {
+        this.cells[col][row] = color;
     }
 
     isOccupied(col, row) {
-        return this.cells[col][row];
+        return this.cells[col][row] !== null;
     }
 
     draw(blockPainter) {
         for (var col = 0; col < 10; col++) {
             for (var row = 0; row < 20; row++) {
                 if (this.isOccupied(col, row)) {
-                    blockPainter.drawBlock(col, row, 'rgb(150 0 0)')
+                    blockPainter.drawBlock(col, row, this.cells[col][row])
                 } else {
                     blockPainter.drawBlock(col, row, 'rgb(50 50 50)');
                 }
@@ -73,11 +119,10 @@ class Board {
 }
 
 class Piece {    
-    cells = [];    
-
-    constructor(board, position) {
-        this.cells[0] = [true,true];
-        this.cells[1] = [true,true];
+    constructor(board, position) {        
+        const shape = new ShapePicker().pickRandomShape();
+        this.color = shape.color;
+        this.cells = shape.cells;
 
         this.board = board;        
         this.position = position;
@@ -121,7 +166,7 @@ class Piece {
                     var boardColIndex = this.position.col + colIndex;
                     var boardRowIndex = this.position.row + rowIndex;
 
-                    this.board.setCell(boardColIndex, boardRowIndex, true);
+                    this.board.setCell(boardColIndex, boardRowIndex, this.color);
                 }
             }    
         }
@@ -134,7 +179,7 @@ class Piece {
                     var boardColIndex = this.position.col + colIndex;
                     var boardRowIndex = this.position.row + rowIndex;
 
-                    blockPainter.drawBlock(boardColIndex, boardRowIndex, 'rgb(255,0,0)');
+                    blockPainter.drawBlock(boardColIndex, boardRowIndex, this.color);
                 }
             }
         }
