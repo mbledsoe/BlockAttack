@@ -78,9 +78,11 @@ class Board {
 
 class Piece {    
     cells = [];
+    board;
     position;    
 
-    constructor(position) {
+    constructor(board, position) {
+        this.board = board;
         this.cells[0] = [true,true];
         this.cells[1] = [true,true];
         this.position = position;
@@ -90,12 +92,8 @@ class Piece {
         return this.cells[colIndex][rowIndex];
     }
 
-    moveDown() {
-        this.position.row++;
-    }
-
-    canMoveDown(board) {
-        const newPosition = this.position.translate(0, 1);
+    canMove(colChange, rowChange) {
+       const newPosition = this.position.translate(colChange, rowChange);
         
         for (var colIndex = 0; colIndex < this.cells.length; colIndex++) {
             for (var rowIndex = 0; rowIndex < this.cells[colIndex].length; rowIndex++) {
@@ -103,28 +101,32 @@ class Piece {
                     var boardColIndex = newPosition.col + colIndex;
                     var boardRowIndex = newPosition.row + rowIndex;
 
-                    if (!board.hasCell(boardColIndex, boardRowIndex)) {
+                    if (!this.board.hasCell(boardColIndex, boardRowIndex)) {
                         return false;
                     }
 
-                    if (board.isOccupied(boardColIndex, boardRowIndex)) {
+                    if (this.board.isOccupied(boardColIndex, boardRowIndex)) {
                         return false;
                     }
                 }
             }    
         }
 
-        return true;
+        return true; 
     }
 
-    mergeToBoard(board) {
+    move(colChange, rowChange) {
+        this.position = this.position.translate(colChange, rowChange);
+    }
+
+    mergeToBoard() {
         for (var colIndex = 0; colIndex < this.cells.length; colIndex++) {
             for (var rowIndex = 0; rowIndex < this.cells[colIndex].length; rowIndex++) {
                 if (this.hasBlock(colIndex, rowIndex)) {
                     var boardColIndex = this.position.col + colIndex;
                     var boardRowIndex = this.position.row + rowIndex;
 
-                    board.setCell(boardColIndex, boardRowIndex, true);
+                    this.board.setCell(boardColIndex, boardRowIndex, true);
                 }
             }    
         }
@@ -152,7 +154,7 @@ class BlockAttack
     height = 600;
     
     board = new Board();
-    currentPiece = new Piece(new Position(4, 0));
+    currentPiece = new Piece(this.board, new Position(4, 0));
     ctx;
     blockPainter;
 
@@ -176,7 +178,7 @@ class BlockAttack
 
         this.rootElement.appendChild(this.canvas);
 
-        window.addEventListener('keydown', this.onKeydown);
+        window.addEventListener('keydown', (ev) => this.onKeydown(ev));
 
         this.clearCanvas();
         this.drawBoard();
@@ -185,11 +187,30 @@ class BlockAttack
     }
 
     onKeydown(ev) {
-        console.log('keydown', ev);
+        switch (ev.code) {
+            case 'ArrowLeft':
+                if (this.currentPiece.canMove(-1,0)) {
+                    this.currentPiece.move(-1,0);
+                }
+                break;
+            case 'ArrowRight':
+                if (this.currentPiece.canMove(1,0)) {
+                    this.currentPiece.move(1,0);
+                }
+                break;
+            case 'ArrowDown':
+                if (this.currentPiece.canMove(0,1)) {                    
+                    this.currentPiece.move(0,1);
+                    this.movePieceLastTimeStamp = performance.now();
+                } else {
+                    this.mergeCurrentPiece();
+                }
+                break;
+        }        
     }
 
     tick(timestamp) {        
-        this.movePiece(timestamp);
+        this.updateState(timestamp);
 
         this.clearCanvas();
         this.drawBoard();
@@ -197,7 +218,7 @@ class BlockAttack
         window.requestAnimationFrame(timestamp => this.tick(timestamp));
     }
     
-    movePiece(timestamp) {
+    updateState(timestamp) {
         if (this.movePieceLastTimeStamp == 0) {
             this.movePieceLastTimeStamp = performance.now();
         }
@@ -207,13 +228,18 @@ class BlockAttack
         if (elapsedTime >= this.movePieceInterval) {
             this.movePieceLastTimeStamp = timestamp;
 
-            if (this.currentPiece.canMoveDown(this.board)) {                
-                this.currentPiece.moveDown();
+            if (this.currentPiece.canMove(0,1)) {                
+                this.currentPiece.move(0,1);
             } else {
-                this.currentPiece.mergeToBoard(this.board);
-                this.currentPiece = new Piece(new Position(4, 0));
+                this.mergeCurrentPiece();
             }
         }
+    }
+
+    mergeCurrentPiece() {
+        this.currentPiece.mergeToBoard();
+        this.currentPiece = new Piece(this.board, new Position(4, 0));
+        this.movePieceLastTimeStamp = performance.now();
     }
 
     clearCanvas() {
