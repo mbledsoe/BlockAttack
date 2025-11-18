@@ -1,51 +1,5 @@
 "use strict";
 
-const Shapes = {
-    oShape: {
-        color: 'rgb(255,255,0)',
-        cells: [
-            [true, true],
-            [true, true]
-        ]
-    },
-    iShape:  {
-        color: 'rgb(51,204,255)',
-        cells: [
-            [false, false, false, false],
-            [true, true, true, true],
-            [false, false, false, false],
-            [false, false, false, false]
-        ]
-    },
-    sShape: {
-        color: 'rgb(255,0,0)',
-        cells: [
-            [false, false, true],
-            [false, true, true],
-            [false, true, false]
-        ]
-    }    
-}
-
-class ShapePicker {
-    shapes = [
-        Shapes.oShape,
-        Shapes.iShape,
-        Shapes.sShape
-    ];
-
-    pickRandomShape() {
-        const min = 0;
-        const max = 2;
-
-        const shapeIndex = Math.floor(Math.random() * (max - min + 1)) + min;
-        
-        console.log('shapeIndex', shapeIndex);
-
-        return this.shapes[shapeIndex];
-    }
-}
-
 class Position {
     constructor(col, row) {
         this.col = col;
@@ -54,6 +8,203 @@ class Position {
 
     translate(colChange, rowChange) {
         return new Position(this.col + colChange, this.row + rowChange);
+    }
+}
+
+const Shapes = {
+    oShape: {
+        startPosition: new Position(3, 0),        
+        color: 'rgb(255,255,0)',
+        rotations: [
+            [
+                [0,0,0],
+                [1,1,0],
+                [1,1,0],
+                [0,0,0]
+            ]            
+        ]
+    },
+    iShape:  {
+        startPosition: new Position(3, 0),
+        color: 'rgb(51,204,255)',
+        rotations: [
+            [
+                [0,1,0,0],
+                [0,1,0,0],
+                [0,1,0,0],
+                [0,1,0,0]            
+            ],
+            [
+                [0,0,0,0],
+                [0,0,0,0],
+                [1,1,1,1],
+                [0,0,0,0]           
+            ],
+            [
+                [0,0,1,0],
+                [0,0,1,0],
+                [0,0,1,0],
+                [0,0,1,0]            
+            ],
+            [
+                [0,0,0,0],
+                [1,1,1,1],
+                [0,0,0,0],
+                [0,0,0,0]            
+            ]
+        ]        
+    },
+    sShape: {
+        startPosition: new Position(4, 0),
+        color: 'rgb(0,255,0)',
+        rotations: [
+            [
+                [0,1,0],
+                [1,1,0],
+                [1,0,0]
+            ],
+            [
+                [0,0,0],
+                [1,1,0],
+                [0,1,1]
+            ],
+            [
+                [0,0,1],
+                [0,1,1],
+                [0,1,0]
+            ],
+            [
+                [1,1,0],
+                [0,1,1],
+                [0,0,0]
+            ]
+        ]
+    },
+    jShape: {
+        startPosition: new Position(3,0),
+        color: 'rgb(0,0,255)',
+        rotations: [
+            [
+                [1,1,0],
+                [0,1,0],
+                [0,1,0]
+            ],
+            [
+                [0,0,0],
+                [1,1,1],
+                [1,0,0]
+            ],
+            [
+                [0,1,0],
+                [0,1,0],
+                [0,1,1]
+            ],
+            [
+                [0,0,1],
+                [1,1,1],
+                [0,0,0]
+            ]
+        ]
+    },
+    lShape: {
+        startPosition: new Position(3,0),
+        color: 'rgb(255,125,0)',
+        rotations: [
+            [
+                [0,1,0],
+                [0,1,0],
+                [1,1,0]
+            ],
+            [
+                [0,0,0],
+                [1,1,1],
+                [0,0,1]
+            ],
+            [
+                [0,1,1],
+                [0,1,0],
+                [0,1,1]
+            ],
+            [
+                [1,0,0],
+                [1,1,1],
+                [0,0,0]
+            ]
+        ]
+    },
+    tShape: {
+        startPosition: new Position(3,0),
+        color: 'rgb(200,0,255)',
+        rotations: [
+            [
+                [0,1,0],
+                [1,1,0],
+                [0,1,0]
+            ],
+            [
+                [0,0,0],
+                [1,1,1],
+                [0,1,0]
+            ],
+            [
+                [0,1,0],
+                [0,1,1],
+                [0,1,0]
+            ],
+            [
+                [0,1,0],
+                [1,1,1],
+                [0,0,0]
+            ]
+        ]
+    },
+    zShape: {
+        startPosition: new Position(3,0),
+        color: 'rgb(255,0,0)',
+        rotations: [
+            [
+                [1,0,0],
+                [1,1,0],
+                [0,1,0]
+            ],
+            [
+                [0,0,0],
+                [0,1,1],
+                [1,1,0]
+            ],
+            [
+                [0,1,0],
+                [0,1,1],
+                [0,0,1]
+            ],
+            [
+                [0,1,1],
+                [1,1,0],
+                [0,0,0]
+            ]
+        ]
+    }
+}
+
+class ShapePicker {
+    shapes = [
+        Shapes.oShape,
+        Shapes.iShape,
+        Shapes.sShape,
+        Shapes.jShape,
+        Shapes.lShape,
+        Shapes.tShape,
+        Shapes.zShape
+    ];
+
+    pickRandomShape() {
+        const min = 0;
+        const max = this.shapes.length;
+
+        const shapeIndex = Math.floor(Math.random() * (max - min)) + min;
+        console.log('shapeIndex', shapeIndex);
+
+        return this.shapes[shapeIndex];
     }
 }
 
@@ -119,25 +270,23 @@ class Board {
 }
 
 class Piece {    
-    constructor(board, position) {        
-        const shape = new ShapePicker().pickRandomShape();
-        this.color = shape.color;
-        this.cells = shape.cells;
+    constructor(board) {
+        this.shape = new ShapePicker().pickRandomShape();
+        this.rotationIndex = 0;
+        this.cells = this.shape.rotations[this.rotationIndex];
+        this.position = this.shape.startPosition;
 
-        this.board = board;        
-        this.position = position;
+        this.board = board;
     }
 
-    hasBlock(colIndex, rowIndex) {
-        return this.cells[colIndex][rowIndex];
-    }
-
-    canMove(colChange, rowChange) {
-       const newPosition = this.position.translate(colChange, rowChange);
+    canMove(colChange, rowChange, rotationIndex) {
+        const newRotationIndex = rotationIndex || this.rotationIndex;
+        const newCells = this.shape.rotations[newRotationIndex];
+        const newPosition = this.position.translate(colChange, rowChange);
         
-        for (var colIndex = 0; colIndex < this.cells.length; colIndex++) {
-            for (var rowIndex = 0; rowIndex < this.cells[colIndex].length; rowIndex++) {
-                if (this.hasBlock(colIndex, rowIndex)) {
+        for (var colIndex = 0; colIndex < newCells.length; colIndex++) {
+            for (var rowIndex = 0; rowIndex < newCells[colIndex].length; rowIndex++) {
+                if (newCells[colIndex][rowIndex] === 1) {
                     var boardColIndex = newPosition.col + colIndex;
                     var boardRowIndex = newPosition.row + rowIndex;
 
@@ -159,14 +308,31 @@ class Piece {
         this.position = this.position.translate(colChange, rowChange);
     }
 
-    mergeToBoard() {
+    canRotate() {
+        return this.canMove(0, 0, this.getNextRotationIndex());
+    }
+
+    rotate() {
+        this.rotationIndex = this.getNextRotationIndex();        
+        this.cells = this.shape.rotations[this.rotationIndex];
+    }
+
+    getNextRotationIndex() {
+        if (this.rotationIndex == this.shape.rotations.length - 1) {
+            return 0;
+        } else {
+            return this.rotationIndex + 1;
+        }
+    }
+
+    mergeToBoard() {        
         for (var colIndex = 0; colIndex < this.cells.length; colIndex++) {
             for (var rowIndex = 0; rowIndex < this.cells[colIndex].length; rowIndex++) {
-                if (this.hasBlock(colIndex, rowIndex)) {
+                if (this.cells[colIndex][rowIndex] === 1) {
                     var boardColIndex = this.position.col + colIndex;
                     var boardRowIndex = this.position.row + rowIndex;
 
-                    this.board.setCell(boardColIndex, boardRowIndex, this.color);
+                    this.board.setCell(boardColIndex, boardRowIndex, this.shape.color);
                 }
             }    
         }
@@ -175,11 +341,11 @@ class Piece {
     draw(blockPainter) {
         for (var colIndex = 0; colIndex < this.cells.length; colIndex++) {
             for (var rowIndex = 0; rowIndex < this.cells[colIndex].length; rowIndex++) {
-                if (this.hasBlock(colIndex, rowIndex)) {
+                if (this.cells[colIndex][rowIndex] === 1) {
                     var boardColIndex = this.position.col + colIndex;
                     var boardRowIndex = this.position.row + rowIndex;
 
-                    blockPainter.drawBlock(boardColIndex, boardRowIndex, this.color);
+                    blockPainter.drawBlock(boardColIndex, boardRowIndex, this.shape.color);
                 }
             }
         }
@@ -194,7 +360,7 @@ class BlockAttack
     height = 600;
     
     board = new Board();
-    currentPiece = new Piece(this.board, new Position(4, 0));
+    currentPiece = new Piece(this.board);
     
     movePieceLastTimeStamp = 0;
     movePieceInterval = 1000;
@@ -244,6 +410,11 @@ class BlockAttack
                     this.mergeCurrentPiece();
                 }
                 break;
+            case 'Space':
+                if (this.currentPiece.canRotate()) {
+                    this.currentPiece.rotate();
+                }
+                break;                                
         }        
     }
 
@@ -276,7 +447,7 @@ class BlockAttack
 
     mergeCurrentPiece() {
         this.currentPiece.mergeToBoard();
-        this.currentPiece = new Piece(this.board, new Position(4, 0));
+        this.currentPiece = new Piece(this.board);
         this.movePieceLastTimeStamp = performance.now();
     }
 
