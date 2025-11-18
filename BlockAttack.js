@@ -1,9 +1,6 @@
 "use strict";
 
 class Position {
-    col;
-    row;
-
     constructor(col, row) {
         this.col = col;
         this.row = row;
@@ -16,8 +13,7 @@ class Position {
 
 class BlockPainter {
     blockWidth = 30;
-    blockHeight = 30;
-    ctx;
+    blockHeight = 30;    
 
     constructor(ctx) {
         this.ctx = ctx;
@@ -77,14 +73,13 @@ class Board {
 }
 
 class Piece {    
-    cells = [];
-    board;
-    position;    
+    cells = [];    
 
     constructor(board, position) {
-        this.board = board;
         this.cells[0] = [true,true];
         this.cells[1] = [true,true];
+
+        this.board = board;        
         this.position = position;
     }
 
@@ -155,9 +150,7 @@ class BlockAttack
     
     board = new Board();
     currentPiece = new Piece(this.board, new Position(4, 0));
-    ctx;
-    blockPainter;
-
+    
     movePieceLastTimeStamp = 0;
     movePieceInterval = 1000;
     movePieceRowIncrement = 1;
