@@ -11,6 +11,63 @@ class Position {
     }
 }
 
+class Grid {    
+    constructor(columns, rows, getValueFunc) {
+        getValueFunc = getValueFunc || (() => null);
+        this.columns = columns;
+        this.rows = rows;
+        this.cells = [];
+
+        for (var col = 0; col < columns; col++) {
+            this.cells[col] = [];
+
+            for (var row = 0; row < rows; row++) {                
+                this.cells[col][row] = getValueFunc(col, row);
+            }
+        }
+    }
+
+    static createFromCells(cells) {
+        var grid = new Grid(
+            cells.length, 
+            cells[0].length, 
+            (col, row) => cells[col][row]);
+
+        return grid;
+    }
+
+    hasCell(col, row) {
+        return (col >= 0 && col < this.columns)
+            && (row >= 0 && row < this.rows);
+    }
+
+    setCellValue(col, row, value) {
+        this.cells[col][row] = value;
+    }
+
+    getCellValue(col, row) {
+        return this.cells[col][row];
+    }
+
+    hasCellValue(col, row) {
+        return this.getCellValue(col, row) !== null;
+    }
+
+    walkGrid(callbackFunc) {
+        for (var col = 0; col < this.cells.length; col++) {
+            for (var row = 0; row < this.cells[col].length; row++) {
+                const continueWalking = callbackFunc(col, row, this.cells[col][row]);
+
+                if (continueWalking === false) {
+                    return false;
+                }
+            }
+        }
+
+        return true;
+    }
+}
+
 const Shapes = {
     oShape: {
         startPosition: new Position(3, 0),        
@@ -123,7 +180,7 @@ const Shapes = {
             [
                 [0,1,1],
                 [0,1,0],
-                [0,1,1]
+                [0,1,0]
             ],
             [
                 [1,0,0],
@@ -200,9 +257,8 @@ class ShapePicker {
     pickRandomShape() {
         const min = 0;
         const max = this.shapes.length;
-
+        
         const shapeIndex = Math.floor(Math.random() * (max - min)) + min;
-        console.log('shapeIndex', shapeIndex);
 
         return this.shapes[shapeIndex];
     }
@@ -229,43 +285,31 @@ class BlockPainter {
 }
 
 class Board {
-    columns = 10;
-    rows = 20;
-    cells = [];
+    grid = new Grid(10, 20, () => null);
 
     constructor() {
-        for (var col = 0; col < this.columns; col++) {
-            this.cells[col] = [];
-
-            for (var row = 0; row < this.rows; row++) {
-                this.cells[col][row] = null;
-            }
-        }
     }
 
     hasCell(col, row) {
-        return (col >= 0 && col < this.columns)
-            && (row >= 0 && row < this.rows);
+        return this.grid.hasCell(col, row);
     }
 
     setCell(col, row, color) {
-        this.cells[col][row] = color;
+        this.grid.setCellValue(col, row, color);
     }
 
     isOccupied(col, row) {
-        return this.cells[col][row] !== null;
+        return this.grid.hasCellValue(col, row);
     }
 
     draw(blockPainter) {
-        for (var col = 0; col < 10; col++) {
-            for (var row = 0; row < 20; row++) {
-                if (this.isOccupied(col, row)) {
-                    blockPainter.drawBlock(col, row, this.cells[col][row])
-                } else {
-                    blockPainter.drawBlock(col, row, 'rgb(50 50 50)');
-                }
+        this.grid.walkGrid((col, row, value) => {
+            if (value !== null) {
+                blockPainter.drawBlock(col, row, this.grid.getCellValue(col, row));
+            } else {
+                blockPainter.drawBlock(col, row, 'rgb(50 50 50)');
             }
-        }
+        });
     }
 }
 
@@ -273,7 +317,7 @@ class Piece {
     constructor(board) {
         this.shape = new ShapePicker().pickRandomShape();
         this.rotationIndex = 0;
-        this.cells = this.shape.rotations[this.rotationIndex];
+        this.grid = Grid.createFromCells(this.shape.rotations[this.rotationIndex]);        
         this.position = this.shape.startPosition;
 
         this.board = board;
@@ -281,27 +325,25 @@ class Piece {
 
     canMove(colChange, rowChange, rotationIndex) {
         const newRotationIndex = rotationIndex || this.rotationIndex;
-        const newCells = this.shape.rotations[newRotationIndex];
+        const newGrid = Grid.createFromCells(this.shape.rotations[newRotationIndex]);        
         const newPosition = this.position.translate(colChange, rowChange);
-        
-        for (var colIndex = 0; colIndex < newCells.length; colIndex++) {
-            for (var rowIndex = 0; rowIndex < newCells[colIndex].length; rowIndex++) {
-                if (newCells[colIndex][rowIndex] === 1) {
-                    var boardColIndex = newPosition.col + colIndex;
-                    var boardRowIndex = newPosition.row + rowIndex;
 
-                    if (!this.board.hasCell(boardColIndex, boardRowIndex)) {
-                        return false;
-                    }
+        const noCollisionDetected = newGrid.walkGrid((colIndex, rowIndex, value) => {
+            if (value === 1) {
+                var boardColIndex = newPosition.col + colIndex;
+                var boardRowIndex = newPosition.row + rowIndex;
 
-                    if (this.board.isOccupied(boardColIndex, boardRowIndex)) {
-                        return false;
-                    }
+                if (!this.board.hasCell(boardColIndex, boardRowIndex)) {
+                    return false;
                 }
-            }    
-        }
 
-        return true; 
+                if (this.board.isOccupied(boardColIndex, boardRowIndex)) {
+                    return false;
+                }
+            }            
+        });
+
+        return noCollisionDetected;
     }
 
     move(colChange, rowChange) {
@@ -313,8 +355,8 @@ class Piece {
     }
 
     rotate() {
-        this.rotationIndex = this.getNextRotationIndex();        
-        this.cells = this.shape.rotations[this.rotationIndex];
+        this.rotationIndex = this.getNextRotationIndex();
+        this.grid = Grid.createFromCells(this.shape.rotations[this.rotationIndex]);
     }
 
     getNextRotationIndex() {
@@ -325,30 +367,26 @@ class Piece {
         }
     }
 
-    mergeToBoard() {        
-        for (var colIndex = 0; colIndex < this.cells.length; colIndex++) {
-            for (var rowIndex = 0; rowIndex < this.cells[colIndex].length; rowIndex++) {
-                if (this.cells[colIndex][rowIndex] === 1) {
-                    var boardColIndex = this.position.col + colIndex;
-                    var boardRowIndex = this.position.row + rowIndex;
+    mergeToBoard() {
+        this.grid.walkGrid((col, row, value) => {
+            if (value === 1) {
+                var boardColIndex = this.position.col + col;
+                var boardRowIndex = this.position.row + row;
 
-                    this.board.setCell(boardColIndex, boardRowIndex, this.shape.color);
-                }
-            }    
-        }
+                this.board.setCell(boardColIndex, boardRowIndex, this.shape.color);
+            }
+        });
     }
 
     draw(blockPainter) {
-        for (var colIndex = 0; colIndex < this.cells.length; colIndex++) {
-            for (var rowIndex = 0; rowIndex < this.cells[colIndex].length; rowIndex++) {
-                if (this.cells[colIndex][rowIndex] === 1) {
-                    var boardColIndex = this.position.col + colIndex;
-                    var boardRowIndex = this.position.row + rowIndex;
+        this.grid.walkGrid((col, row, value) => {
+            if (value === 1) {
+                var boardColIndex = this.position.col + col;
+                var boardRowIndex = this.position.row + row;
 
-                    blockPainter.drawBlock(boardColIndex, boardRowIndex, this.shape.color);
-                }
+                blockPainter.drawBlock(boardColIndex, boardRowIndex, this.shape.color);
             }
-        }
+        });
     }
 }
 
