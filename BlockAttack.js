@@ -531,8 +531,7 @@ class BlockAttack
         window.requestAnimationFrame(timestamp => this.tick(timestamp));
     }
 
-    onKeydown(ev) {
-        console.log(ev.code);
+    onKeydown(ev) {        
         // This is relying on the built in key repeat behavior of the browser for now.
         switch (ev.code) {
             case 'ArrowLeft':
@@ -545,10 +544,10 @@ class BlockAttack
                 this.inputQueue.push(new MoveDownCommand());
                 break;
             case 'Space':
-                this.inputQueue.push(new RotateCommand());
+                this.inputQueue.push(new DropCommand());
                 break;
             case 'ControlLeft':
-                this.inputQueue.push(new DropCommand());                           
+                this.inputQueue.push(new RotateCommand());                           
         }        
     }
 
@@ -610,9 +609,9 @@ class BlockAttack
     drawNextPiece() {
         this.ctx.font = "20px sans-serif";
         this.ctx.fillStyle = "rgb(255,255,255)";
-        this.ctx.fillText("NEXT", 350, 35);
+        this.ctx.fillText("NEXT", 365, 35);
 
-        var nextPiecePainter = new BlockPainter(this.ctx, new Coordinate(320, 50));
+        var nextPiecePainter = new BlockPainter(this.ctx, new Coordinate(330, 50));
         this.nextPieceGrid.draw(nextPiecePainter);
         this.nextPiece.draw(nextPiecePainter);
     }
