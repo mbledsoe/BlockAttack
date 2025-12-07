@@ -489,6 +489,8 @@ class CurrentPiece {
 
 class BlockAttack
 {     
+    gameOver = false;
+
     columns = 10;
     rows = 20;
     width = 480;
@@ -551,7 +553,12 @@ class BlockAttack
         }        
     }
 
-    tick(timestamp) {        
+    tick(timestamp) {
+        if (this.gameOver) {
+            this.drawGameOver();
+            return;
+        }
+
         this.updateState(timestamp);
 
         this.clearCanvas();
@@ -593,11 +600,28 @@ class BlockAttack
         this.board.clearCompletedRows();
         this.currentPiece = new CurrentPiece(this.board, this.shapePicker.pickRandomShape());
         this.nextPiece = new NextPiece(this.shapePicker.pickRandomShape());
+
+        if (!this.currentPiece.canMove(0,0)) {
+            this.gameOver = true;            
+            return;
+        }
+        
         this.movePieceLastTimeStamp = performance.now();
     }
 
     clearCanvas() {
         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+    }
+
+    drawGameOver() {
+        this.ctx.fillStyle = "rgb(0,0,0, 0.75)";
+        this.ctx.roundRect(40, 50, 400, 120, [20]);
+        this.ctx.fill();
+
+        this.ctx.font = "bold 40px sans-serif";
+        this.ctx.textBaseline = "top";
+        this.ctx.fillStyle = "rgb(255,255,255)";
+        this.ctx.fillText("GAME OVER", 120, 90);
     }
 
     drawBoard() {
@@ -607,9 +631,9 @@ class BlockAttack
     }
 
     drawNextPiece() {
-        this.ctx.font = "20px sans-serif";
+        this.ctx.font = "bold 20px sans-serif";
         this.ctx.fillStyle = "rgb(255,255,255)";
-        this.ctx.fillText("NEXT", 365, 35);
+        this.ctx.fillText("NEXT", 363, 35);
 
         var nextPiecePainter = new BlockPainter(this.ctx, new Coordinate(330, 50));
         this.nextPieceGrid.draw(nextPiecePainter);
