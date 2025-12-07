@@ -237,7 +237,7 @@ class BlockPainter {
 
 class Grid {    
     constructor(columns, rows, getValueFunc) {
-        getValueFunc = getValueFunc || (() => null);
+        getValueFunc = (getValueFunc === undefined) ? (() => null) : getValueFunc;
         this.columns = columns;
         this.rows = rows;
         this.cells = [];
@@ -294,7 +294,7 @@ class Grid {
 
 class BlockGrid {
     constructor(columns, rows, initialValueFunc) {
-        initialValueFunc = initialValueFunc || (() => null);
+        initialValueFunc = (initialValueFunc === undefined) ? (() => null) : initialValueFunc;
         this.columns = columns;
         this.rows = rows;
         
@@ -421,7 +421,7 @@ class CurrentPiece {
     }
 
     canMove(colChange, rowChange, rotationIndex) {
-        const newRotationIndex = rotationIndex || this.rotationIndex;
+        const newRotationIndex = (rotationIndex === undefined) ? this.rotationIndex : rotationIndex;
         const newGrid = Grid.createFromCells(this.shape.rotations[newRotationIndex]);        
         const newPosition = this.position.translate(colChange, rowChange);
 
@@ -532,6 +532,7 @@ class BlockAttack
     }
 
     onKeydown(ev) {
+        console.log(ev.code);
         // This is relying on the built in key repeat behavior of the browser for now.
         switch (ev.code) {
             case 'ArrowLeft':
@@ -545,7 +546,9 @@ class BlockAttack
                 break;
             case 'Space':
                 this.inputQueue.push(new RotateCommand());
-                break;                                
+                break;
+            case 'ControlLeft':
+                this.inputQueue.push(new DropCommand());                           
         }        
     }
 
@@ -647,5 +650,15 @@ class RotateCommand {
         if (blockattack.currentPiece.canRotate()) {
             blockattack.currentPiece.rotate();
         }
+    }
+}
+
+class DropCommand {
+    execute(blockattack) {        
+        while (blockattack.currentPiece.canMove(0,1)) {
+            blockattack.currentPiece.move(0,1);
+        }
+
+        blockattack.mergeCurrentPiece();
     }
 }
