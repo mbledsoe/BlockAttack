@@ -11,8 +11,6 @@ class Position {
     }
 }
 
-
-
 const Shapes = {
     oShape: {
         startPosition: new Position(3, 0),        
@@ -508,6 +506,8 @@ class BlockAttack
     movePieceInterval = 1000;
     movePieceRowIncrement = 1;
 
+    inputQueue = [];
+
     constructor(rootElement) {
         this.rootElement = rootElement;
         this.canvas = document.createElement('canvas');        
@@ -532,29 +532,19 @@ class BlockAttack
     }
 
     onKeydown(ev) {
+        // This is relying on the built in key repeat behavior of the browser for now.
         switch (ev.code) {
             case 'ArrowLeft':
-                if (this.currentPiece.canMove(-1,0)) {
-                    this.currentPiece.move(-1,0);
-                }
+                this.inputQueue.push(new MoveLeftCommand());
                 break;
             case 'ArrowRight':
-                if (this.currentPiece.canMove(1,0)) {
-                    this.currentPiece.move(1,0);
-                }
+                this.inputQueue.push(new MoveRightCommand());
                 break;
             case 'ArrowDown':
-                if (this.currentPiece.canMove(0,1)) {                    
-                    this.currentPiece.move(0,1);
-                    this.movePieceLastTimeStamp = performance.now();
-                } else {
-                    this.mergeCurrentPiece();
-                }
+                this.inputQueue.push(new MoveDownCommand());
                 break;
             case 'Space':
-                if (this.currentPiece.canRotate()) {
-                    this.currentPiece.rotate();
-                }
+                this.inputQueue.push(new RotateCommand());
                 break;                                
         }        
     }
@@ -570,6 +560,8 @@ class BlockAttack
     }
     
     updateState(timestamp) {
+        this.processInputQueue();
+        
         if (this.movePieceLastTimeStamp == 0) {
             this.movePieceLastTimeStamp = performance.now();
         }
@@ -584,6 +576,13 @@ class BlockAttack
             } else {
                 this.mergeCurrentPiece();
             }
+        }
+    }
+
+    processInputQueue() {
+        while (this.inputQueue.length > 0) {
+            const command = this.inputQueue.shift();
+            command.execute(this);
         }
     }
 
@@ -613,5 +612,40 @@ class BlockAttack
         var nextPiecePainter = new BlockPainter(this.ctx, new Coordinate(320, 50));
         this.nextPieceGrid.draw(nextPiecePainter);
         this.nextPiece.draw(nextPiecePainter);
+    }
+}
+
+ class MoveLeftCommand {    
+    execute(blockattack) {
+        if (blockattack.currentPiece.canMove(-1,0)) {
+            blockattack.currentPiece.move(-1,0);
+        }
+    }
+}
+
+class MoveRightCommand {
+    execute(blockattack) {
+        if (blockattack.currentPiece.canMove(1,0)) {
+            blockattack.currentPiece.move(1,0);
+        }
+    }
+}
+
+class MoveDownCommand{
+    execute(blockattack) {        
+        if (blockattack.currentPiece.canMove(0,1)) {                    
+            blockattack.currentPiece.move(0,1);
+            blockattack.movePieceLastTimeStamp = performance.now();
+        } else {
+            blockattack.mergeCurrentPiece();
+        }
+    }        
+}
+
+class RotateCommand {
+    execute(blockattack) {
+        if (blockattack.currentPiece.canRotate()) {
+            blockattack.currentPiece.rotate();
+        }
     }
 }
