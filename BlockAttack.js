@@ -302,6 +302,49 @@ class Board {
         return this.grid.hasCellValue(col, row);
     }
 
+    getCompletedRows() {
+        const completedRows = [];
+
+        for (var row = 0; row < this.grid.rows; row++) {
+            for (var col = 0; col < this.grid.columns; col++){
+                if (!this.isOccupied(col, row)) {
+                    break;
+                }
+
+                if (col == this.grid.columns - 1) {                    
+                    completedRows.push(row);
+                }
+            }
+        }
+
+        return completedRows;
+    }
+
+    clearCompletedRows() {
+        const completedRows = this.getCompletedRows();
+
+        // TODO animate row clearing here
+        
+        for (var i = 0; i < completedRows.length; i++) {
+            this.clearRow(completedRows[i]);
+        }
+    }
+
+    clearRow(row) {
+        for (var clearCol = 0; clearCol < this.grid.columns; clearCol++) {
+            this.setCell(clearCol, row, null);
+        }
+
+        // move rows above down
+        for (var moveRow = row - 1; moveRow >= 0; moveRow--) {
+            for (var moveCol = 0; moveCol < this.grid.columns; moveCol++) {
+                const valueToMoveDown = this.grid.getCellValue(moveCol, moveRow);
+                this.setCell(moveCol, moveRow + 1, valueToMoveDown);
+                this.setCell(moveCol, moveRow, null);
+            }
+        }
+    }
+
     draw(blockPainter) {
         this.grid.walkGrid((col, row, value) => {
             if (value !== null) {
@@ -485,6 +528,7 @@ class BlockAttack
 
     mergeCurrentPiece() {
         this.currentPiece.mergeToBoard();
+        this.board.clearCompletedRows();
         this.currentPiece = new Piece(this.board);
         this.movePieceLastTimeStamp = performance.now();
     }
