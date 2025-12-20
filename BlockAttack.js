@@ -11,6 +11,30 @@ class Position {
     }
 }
 
+class BoundedNumber {
+    constructor(initialValue, min, max) {
+        this.value = initialValue;
+        this.min = min;
+        this.max = max;
+    }
+
+    increment(size) {
+        if (this.value + size > this.max) {
+            this.value = 0;
+        }
+
+        this.value += size;
+    }
+
+    decrement(size) {
+        if (this.value - size < this.min) {
+            this.value = this.max;
+        }
+
+        this.value -= size;
+    }
+}
+
 const Shapes = {
     oShape: {
         startPosition: new Position(3, 0),        
@@ -212,6 +236,12 @@ class Coordinate {
         this.x = x;
         this.y = y;
     }
+
+    translate(xChange, yChange) {
+        return new Coordinate(
+            this.x + xChange, 
+            this.y + yChange);
+    }
 }
 
 class BlockPainter {
@@ -223,15 +253,32 @@ class BlockPainter {
         this.origin = origin;
     }
 
-    drawBlock(col, row, fillStyle) {
+    drawBlockOnGrid(col, row, fillStyle) {
+        this.ctx.fillStyle = fillStyle;        
+
+        const coordinate = new Coordinate(
+            this.origin.x + (col * this.blockWidth),
+            this.origin.y + (row * this.blockHeight)
+        );
+
+        this.drawBlockAtCoordinate(coordinate, fillStyle);
+    }
+
+    drawBlockAtCoordinate(coordinate, fillStyle, rotatedDegrees) {
         this.ctx.fillStyle = fillStyle;
         this.ctx.strokeStyle = 'rgb(25 25 25)';
-
-        const x = this.origin.x + (col * this.blockWidth);
-        const y = this.origin.y + (row * this.blockHeight);
-
-        this.ctx.fillRect(x, y, this.blockWidth, this.blockHeight);
-        this.ctx.strokeRect(x, y, this.blockWidth, this.blockHeight);
+        
+        if (rotatedDegrees === undefined) {            
+            this.ctx.fillRect(coordinate.x, coordinate.y, this.blockWidth, this.blockHeight);
+            this.ctx.strokeRect(coordinate.x, coordinate.y, this.blockWidth, this.blockHeight);
+        } else {
+            this.ctx.save();            
+            this.ctx.translate(coordinate.x + this.blockWidth / 2, coordinate.y + this.blockHeight / 2);
+            this.ctx.rotate(rotatedDegrees * Math.PI / 180);
+            this.ctx.fillRect(-this.blockWidth / 2, -this.blockHeight / 2, this.blockWidth, this.blockHeight);
+            this.ctx.strokeRect(-this.blockWidth / 2, -this.blockHeight / 2, this.blockWidth, this.blockHeight);
+            this.ctx.restore();
+        }
     }
 }
 
@@ -316,9 +363,9 @@ class BlockGrid {
     draw(blockPainter) {
         this.grid.walkGrid((col, row, value) => {
             if (value !== null) {
-                blockPainter.drawBlock(col, row, this.grid.getCellValue(col, row));
+                blockPainter.drawBlockOnGrid(col, row, this.grid.getCellValue(col, row));
             } else {
-                blockPainter.drawBlock(col, row, 'rgb(50 50 50)');
+                blockPainter.drawBlockOnGrid(col, row, 'rgb(50 50 50)');
             }
         });
     }
@@ -333,6 +380,10 @@ class Board {
 
     setCellValue(col, row, color) {
         this.grid.setCellValue(col, row, color);
+    }
+
+    getCellValue(col, row) {
+        return this.grid.getCellValue(col, row);
     }
 
     isOccupied(col, row) {
@@ -359,25 +410,31 @@ class Board {
 
     clearCompletedRows() {
         const completedRows = this.getCompletedRows();
-
-        // TODO animate row clearing here
         
         for (var i = 0; i < completedRows.length; i++) {
             this.clearRow(completedRows[i]);
         }
+
+        this.dropRows(completedRows);
     }
 
     clearRow(row) {
         for (var clearCol = 0; clearCol < this.grid.columns; clearCol++) {
             this.setCellValue(clearCol, row, null);
-        }
+        }        
+    }
 
-        // move rows above down
-        for (var moveRow = row - 1; moveRow >= 0; moveRow--) {
-            for (var moveCol = 0; moveCol < this.grid.columns; moveCol++) {
-                const valueToMoveDown = this.grid.getCellValue(moveCol, moveRow);
-                this.setCellValue(moveCol, moveRow + 1, valueToMoveDown);
-                this.setCellValue(moveCol, moveRow, null);
+    dropRows(completedRows) {
+        for (var i = 0; i < completedRows.length; i++) {
+            const completedRow = completedRows[i];
+
+            // move rows above down
+            for (var moveRow = completedRow - 1; moveRow >= 0; moveRow--) {
+                for (var moveCol = 0; moveCol < this.grid.columns; moveCol++) {
+                    const valueToMoveDown = this.grid.getCellValue(moveCol, moveRow);
+                    this.setCellValue(moveCol, moveRow + 1, valueToMoveDown);
+                    this.setCellValue(moveCol, moveRow, null);
+                }
             }
         }
     }
@@ -401,13 +458,13 @@ class NextPiece {
                 var boardColIndex = this.position.col + col;
                 var boardRowIndex = this.position.row + row;
 
-                blockPainter.drawBlock(boardColIndex, boardRowIndex, this.shape.color);
+                blockPainter.drawBlockOnGrid(boardColIndex, boardRowIndex, this.shape.color);
             }
         });
     }
 
     makeCurrentPiece(board) {
-        return new CurrentPiece(board, shape);
+        return new CurrentPiece(board, this.shape);
     }
 }
 
@@ -481,16 +538,119 @@ class CurrentPiece {
                 var boardColIndex = this.position.col + col;
                 var boardRowIndex = this.position.row + row;
 
-                blockPainter.drawBlock(boardColIndex, boardRowIndex, this.shape.color);
+                blockPainter.drawBlockOnGrid(boardColIndex, boardRowIndex, this.shape.color);
             }
         });
     }
 }
 
-class BlockAttack
-{     
-    gameOver = false;
+class ClearingBlocksAnimation {
+    clearingBlocksRotationDegrees = new BoundedNumber(0, 0, 360);
+    isCompleted = false;
 
+    constructor(board) {        
+        const completedRows = board.getCompletedRows();
+        this.clearedBlocks = [];
+
+        for (var i = 0; i < completedRows.length; i++) {                
+            var row = completedRows[i];
+
+            for (var col = 0; col < 10; col++) {
+                this.clearedBlocks.push({
+                    column: col,
+                    row: row,                        
+                    color: board.getCellValue(col, row),
+                    coordinate: new Coordinate(col * 30, row * 30)
+                });
+            }
+        }
+    }
+
+    updateState() {        
+        if (this.isCompleted) {
+            return;
+        }
+
+        let minY = 0;
+
+        for (var i = 0; i < this.clearedBlocks.length; i++) {                
+            const clearingBlock = this.clearedBlocks[i];
+
+            if (i === 0) {
+                minY = clearingBlock.coordinate.y;
+            } else {
+                minY = Math.min(clearingBlock.coordinate.y, minY);
+            }
+
+            const xTranslation = clearingBlock.column < 5 ? -1 : 1;
+            clearingBlock.coordinate = clearingBlock.coordinate.translate(xTranslation, 10);
+            this.clearingBlocksRotationDegrees.increment(0.5);
+        }
+
+        // if all blocks are off the screen
+        if (minY > 600) {
+            this.isCompleted = true;            
+        }
+    }
+
+    draw(blockPainter) {
+        if (this.isCompleted) {
+            return;
+        }
+
+        for (var i = 0; i < this.clearedBlocks.length; i++) {                
+            const clearingBlock = this.clearedBlocks[i];
+
+            blockPainter.drawBlockAtCoordinate(
+                clearingBlock.coordinate,
+                clearingBlock.color,
+                this.clearingBlocksRotationDegrees.value);            
+        }
+    }
+}
+
+class MovePieceDownProcess {
+    isCompleted = false;
+    movePieceInterval = 1000;
+    movePieceLastTimeStamp = 0;
+
+    constructor(currentPiece, onPieceLanded) {
+        this.currentPiece = currentPiece;
+        this.onPieceLanded = onPieceLanded;
+    }
+
+    updateState(timestamp) {
+        if (this.isCompleted) {
+            return;
+        }
+
+        if (this.movePieceLastTimeStamp == 0) {
+            this.movePieceLastTimeStamp = performance.now();
+        }
+                
+        const elapsedTime = timestamp - this.movePieceLastTimeStamp;
+
+        if (elapsedTime >= this.movePieceInterval) {
+            this.movePieceLastTimeStamp = timestamp;
+
+            if (this.currentPiece.canMove(0,1)) {                
+                this.currentPiece.move(0,1);
+            } else {                
+                this.onPieceLanded();
+                this.isCompleted = true;
+            }
+        }
+    }
+}
+
+const GameState = {
+    None: 0,
+    Running: 1,    
+    GameOver: 2
+}
+
+class BlockAttack
+{   
     columns = 10;
     rows = 20;
     width = 480;
@@ -503,13 +663,14 @@ class BlockAttack
 
     nextPieceGrid = new BlockGrid(4, 4);
     nextPiece = new NextPiece(this.shapePicker.pickRandomShape());
-    
-    movePieceLastTimeStamp = 0;
-    movePieceInterval = 1000;
-    movePieceRowIncrement = 1;
 
     inputQueue = [];
 
+    movePieceDownProcess = null;
+    clearingBlocksAnimation = null;
+
+    gameState = GameState.None;    
+    
     constructor(rootElement) {
         this.rootElement = rootElement;
         this.canvas = document.createElement('canvas');        
@@ -517,6 +678,8 @@ class BlockAttack
     }
     
     run() {
+        this.gameState = GameState.Running;
+
         this.rootElement.height = this.height;
         this.rootElement.width = this.width;
 
@@ -535,6 +698,10 @@ class BlockAttack
 
     onKeydown(ev) {        
         // This is relying on the built in key repeat behavior of the browser for now.
+        if (!this.gameState == GameState.Running) {
+            return;
+        }
+
         switch (ev.code) {
             case 'ArrowLeft':
                 this.inputQueue.push(new MoveLeftCommand());
@@ -554,36 +721,41 @@ class BlockAttack
     }
 
     tick(timestamp) {
-        if (this.gameOver) {
-            this.drawGameOver();
-            return;
+        switch (this.gameState)
+        {
+            case GameState.Running:
+                this.updateState(timestamp);
+                this.drawBaseScreen();                
+                break;
+            case GameState.GameOver:                
+                this.drawBaseScreen();
+                this.drawGameOver();
+                break;
         }
-
-        this.updateState(timestamp);
-
-        this.clearCanvas();
-        this.drawBoard();
-        this.drawNextPiece();
 
         window.requestAnimationFrame(timestamp => this.tick(timestamp));
     }
     
+    drawBaseScreen() {
+        this.clearCanvas();
+        this.drawBoard();
+        this.drawNextPiece();
+    }
+
     updateState(timestamp) {
         this.processInputQueue();
-        
-        if (this.movePieceLastTimeStamp == 0) {
-            this.movePieceLastTimeStamp = performance.now();
+
+        if (this.movePieceDownProcess == null) {
+            this.movePieceDownProcess = new MovePieceDownProcess(this.currentPiece, () => this.onPieceLanded());
         }
-                
-        const elapsedTime = timestamp - this.movePieceLastTimeStamp;
 
-        if (elapsedTime >= this.movePieceInterval) {
-            this.movePieceLastTimeStamp = timestamp;
+        this.movePieceDownProcess.updateState(timestamp);
 
-            if (this.currentPiece.canMove(0,1)) {                
-                this.currentPiece.move(0,1);
-            } else {
-                this.mergeCurrentPiece();
+        if (this.clearingBlocksAnimation !== null) {
+            this.clearingBlocksAnimation.updateState();
+
+            if (this.clearingBlocksAnimation.isCompleted) {
+                this.clearingBlocksAnimation = null;
             }
         }
     }
@@ -595,18 +767,25 @@ class BlockAttack
         }
     }
 
+    onPieceLanded() {
+        this.mergeCurrentPiece();
+    }
+
     mergeCurrentPiece() {
         this.currentPiece.mergeToBoard();
-        this.board.clearCompletedRows();
-        this.currentPiece = new CurrentPiece(this.board, this.shapePicker.pickRandomShape());
+
+        if (this.board.getCompletedRows().length > 0) {            
+            this.clearingBlocksAnimation = new ClearingBlocksAnimation(this.board);
+            this.board.clearCompletedRows();
+        }
+
+        this.currentPiece = this.nextPiece.makeCurrentPiece(this.board);
         this.nextPiece = new NextPiece(this.shapePicker.pickRandomShape());
+        this.movePieceDownProcess = new MovePieceDownProcess(this.currentPiece, () => this.onPieceLanded());
 
         if (!this.currentPiece.canMove(0,0)) {
-            this.gameOver = true;            
-            return;
-        }
-        
-        this.movePieceLastTimeStamp = performance.now();
+            this.gameState = GameState.GameOver;            
+        }       
     }
 
     clearCanvas() {
@@ -625,9 +804,13 @@ class BlockAttack
     }
 
     drawBoard() {
-        var boardPainter = new BlockPainter(this.ctx, new Coordinate(0, 0));
-        this.board.draw(boardPainter);
-        this.currentPiece.draw(boardPainter);
+        var blockPainter = new BlockPainter(this.ctx, new Coordinate(0, 0));
+        this.board.draw(blockPainter);
+        this.currentPiece.draw(blockPainter);        
+
+        if (this.clearingBlocksAnimation !== null) {
+            this.clearingBlocksAnimation.draw(blockPainter);
+        }
     }
 
     drawNextPiece() {
@@ -642,14 +825,14 @@ class BlockAttack
 }
 
  class MoveLeftCommand {    
-    execute(blockattack) {
+    execute(blockattack) {        
         if (blockattack.currentPiece.canMove(-1,0)) {
             blockattack.currentPiece.move(-1,0);
         }
     }
 }
 
-class MoveRightCommand {
+class MoveRightCommand {    
     execute(blockattack) {
         if (blockattack.currentPiece.canMove(1,0)) {
             blockattack.currentPiece.move(1,0);
@@ -658,7 +841,7 @@ class MoveRightCommand {
 }
 
 class MoveDownCommand{
-    execute(blockattack) {        
+    execute(blockattack) {  
         if (blockattack.currentPiece.canMove(0,1)) {                    
             blockattack.currentPiece.move(0,1);
             blockattack.movePieceLastTimeStamp = performance.now();
@@ -668,7 +851,7 @@ class MoveDownCommand{
     }        
 }
 
-class RotateCommand {
+class RotateCommand {    
     execute(blockattack) {
         if (blockattack.currentPiece.canRotate()) {
             blockattack.currentPiece.rotate();
@@ -677,7 +860,7 @@ class RotateCommand {
 }
 
 class DropCommand {
-    execute(blockattack) {        
+    execute(blockattack) { 
         while (blockattack.currentPiece.canMove(0,1)) {
             blockattack.currentPiece.move(0,1);
         }
