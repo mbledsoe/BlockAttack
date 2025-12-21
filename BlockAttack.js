@@ -619,6 +619,10 @@ class MovePieceDownProcess {
         this.onPieceLanded = onPieceLanded;
     }
 
+    reset(timestamp) {
+        this.movePieceLastTimeStamp = timestamp;
+    }
+
     updateState(timestamp) {
         if (this.isCompleted) {
             return;
@@ -666,6 +670,7 @@ class BlockAttack
 
     inputQueue = [];
 
+    keyboardMonitorProcess = null;
     movePieceDownProcess = null;
     clearingBlocksAnimation = null;
 
@@ -686,38 +691,15 @@ class BlockAttack
         this.canvas.height = this.height;
         this.canvas.width = this.width;
 
-        this.rootElement.appendChild(this.canvas);
-
-        window.addEventListener('keydown', (ev) => this.onKeydown(ev));
+        this.rootElement.appendChild(this.canvas);        
+        
+        this.keyboardMonitorProcess = new KeyboardMonitorProcess(this.inputQueue);
+        this.movePieceDownProcess = new MovePieceDownProcess(this.currentPiece, () => this.onPieceLanded());
 
         this.clearCanvas();
         this.drawBoard();
 
-        window.requestAnimationFrame(timestamp => this.tick(timestamp));
-    }
-
-    onKeydown(ev) {        
-        // This is relying on the built in key repeat behavior of the browser for now.
-        if (!this.gameState == GameState.Running) {
-            return;
-        }
-
-        switch (ev.code) {
-            case 'ArrowLeft':
-                this.inputQueue.push(new MoveLeftCommand());
-                break;
-            case 'ArrowRight':
-                this.inputQueue.push(new MoveRightCommand());
-                break;
-            case 'ArrowDown':
-                this.inputQueue.push(new MoveDownCommand());
-                break;
-            case 'Space':
-                this.inputQueue.push(new DropCommand());
-                break;
-            case 'ControlLeft':
-                this.inputQueue.push(new RotateCommand());                           
-        }        
+        this.tick(performance.now());
     }
 
     tick(timestamp) {
@@ -742,13 +724,9 @@ class BlockAttack
         this.drawNextPiece();
     }
 
-    updateState(timestamp) {
+    updateState(timestamp) {        
         this.processInputQueue();
-
-        if (this.movePieceDownProcess == null) {
-            this.movePieceDownProcess = new MovePieceDownProcess(this.currentPiece, () => this.onPieceLanded());
-        }
-
+        
         this.movePieceDownProcess.updateState(timestamp);
 
         if (this.clearingBlocksAnimation !== null) {
@@ -758,6 +736,8 @@ class BlockAttack
                 this.clearingBlocksAnimation = null;
             }
         }
+
+        this.keyboardMonitorProcess.updateState(timestamp);
     }
 
     processInputQueue() {
@@ -786,6 +766,10 @@ class BlockAttack
         if (!this.currentPiece.canMove(0,0)) {
             this.gameState = GameState.GameOver;            
         }       
+    }
+
+    resetMovePieceDownProcess() {
+        this.movePieceDownProcess.reset(performance.now());
     }
 
     clearCanvas() {
@@ -824,7 +808,94 @@ class BlockAttack
     }
 }
 
- class MoveLeftCommand {    
+class KeyboardState {    
+    keyDownStates = {};
+
+    constructor() {
+        window.addEventListener('keyup', (ev) => this.onKeyup(ev));
+        window.addEventListener('keydown', (ev) => this.onKeydown(ev));
+    }
+
+    onKeydown(ev) {
+        this.keyDownStates[ev.code] = true;
+    }
+
+    onKeyup(ev) {
+        this.keyDownStates[ev.code] = false;
+    }
+
+    isDown(keycode) {
+        return this.keyDownStates[keycode] === true;
+    }
+    
+    reset(keycode) {
+        this.keyDownStates[keycode] = false;
+    }
+}
+
+class KeyMonitor {
+    lastEventTimestamp = 0;
+
+    constructor(keycode, repeatIntervalMs, autoReset, eventCallback) {
+        this.keycode = keycode;
+        this.repeatInterval = repeatIntervalMs;
+        this.autoReset = autoReset;
+        this.eventCallback = eventCallback;
+    }
+
+    updateState(timestamp, keyboardState) {
+        const elapsedTime = timestamp - this.lastEventTimestamp;
+
+        if (!keyboardState.isDown(this.keycode)) {
+            this.lastEventTimestamp = 0;
+            // todo: consider keyup events for shutoff of continuous actions            
+            return;
+        }
+
+        if (this.lastEventTimestamp === 0 || elapsedTime >= this.repeatInterval) {
+            if (keyboardState.isDown(this.keycode)) {
+                if (this.autoReset) {
+                    keyboardState.reset(this.keycode);
+                }
+
+                this.lastEventTimestamp = performance.now();
+                this.eventCallback();
+            }
+        }
+    }
+}
+
+class KeyboardMonitorProcess {
+    keyboardState = new KeyboardState();
+    keymonitors = [];
+
+    constructor(inputQueue) {        
+        this.inputQueue = inputQueue;
+
+        this.addKeyMonitor('ArrowLeft', 50, false, () => new MoveLeftCommand());
+        this.addKeyMonitor('ArrowRight', 50, false, () => new MoveRightCommand());
+        this.addKeyMonitor('ArrowDown', 50, false, () => new MoveDownCommand());
+        this.addKeyMonitor('Space', 200, true, () => new DropCommand());
+        this.addKeyMonitor('ControlLeft', 100, false, () => new RotateCommand());
+    }
+
+    updateState(timestamp) {
+        for (var i = 0; i < this.keymonitors.length; i++) {
+            this.keymonitors[i].updateState(timestamp, this.keyboardState);
+        }
+    }
+
+    addKeyMonitor(keycode, repeatIntervalMs, autoReset, commandFactory) {
+        this.keymonitors.push(new KeyMonitor(
+            keycode,
+            repeatIntervalMs,
+            autoReset,
+            () => this.inputQueue.push(commandFactory())
+        ));
+    }
+}
+
+class MoveLeftCommand {    
     execute(blockattack) {        
         if (blockattack.currentPiece.canMove(-1,0)) {
             blockattack.currentPiece.move(-1,0);
@@ -844,7 +915,7 @@ class MoveDownCommand{
     execute(blockattack) {  
         if (blockattack.currentPiece.canMove(0,1)) {                    
             blockattack.currentPiece.move(0,1);
-            blockattack.movePieceLastTimeStamp = performance.now();
+            blockattack.resetMovePieceDownProcess();
         } else {
             blockattack.mergeCurrentPiece();
         }
@@ -865,6 +936,6 @@ class DropCommand {
             blockattack.currentPiece.move(0,1);
         }
 
-        blockattack.mergeCurrentPiece();
+        blockattack.mergeCurrentPiece();    
     }
 }
