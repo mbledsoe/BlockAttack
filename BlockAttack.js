@@ -346,9 +346,9 @@ class BlockGrid {
         this.rows = rows;
         
         this.grid = new Grid(columns, rows, initialValueFunc);        
-    }
-
-    hasCell(col, row) {
+    }4
+4
+    hasCell(col, row) {4
         return this.grid.hasCell(col, row);
     }
 
@@ -413,9 +413,7 @@ class Board {
         
         for (var i = 0; i < completedRows.length; i++) {
             this.clearRow(completedRows[i]);
-        }
-
-        this.dropRows(completedRows);
+        }        
     }
 
     clearRow(row) {
@@ -424,12 +422,32 @@ class Board {
         }        
     }
 
-    dropRows(completedRows) {
-        for (var i = 0; i < completedRows.length; i++) {
-            const completedRow = completedRows[i];
+    getEmptyRows() {
+        const emptyRows = [];
+
+        for (var row = 0; row < this.grid.rows; row++) {
+            for (var col = 0; col < this.grid.columns; col++){
+                if (this.isOccupied(col, row)) {
+                    break;
+                }
+
+                if (col == this.grid.columns - 1) {                    
+                    emptyRows.push(row);
+                }
+            }
+        }
+
+        return emptyRows;
+    }
+
+    dropRows() {
+        const emptyRows = this.getEmptyRows();
+
+        for (var i = 0; i < emptyRows.length; i++) {
+            const emptyRow = emptyRows[i];
 
             // move rows above down
-            for (var moveRow = completedRow - 1; moveRow >= 0; moveRow--) {
+            for (var moveRow = emptyRow - 1; moveRow >= 0; moveRow--) {
                 for (var moveCol = 0; moveCol < this.grid.columns; moveCol++) {
                     const valueToMoveDown = this.grid.getCellValue(moveCol, moveRow);
                     this.setCellValue(moveCol, moveRow + 1, valueToMoveDown);
@@ -544,67 +562,65 @@ class CurrentPiece {
     }
 }
 
-class ClearingBlocksAnimation {
-    clearingBlocksRotationDegrees = new BoundedNumber(0, 0, 360);
+class ClearingLinesAnimation {    
     isCompleted = false;
+    nextLeftBlockIndex = 4;
+    nextRightBlockIndex = 5;
+    lastBlockRemovalTime = 0;
 
-    constructor(board) {        
+    constructor(board) {
         const completedRows = board.getCompletedRows();
         this.clearedBlocks = [];
 
         for (var i = 0; i < completedRows.length; i++) {                
             var row = completedRows[i];
+            this.clearedBlocks[i] = [];
 
             for (var col = 0; col < 10; col++) {
-                this.clearedBlocks.push({
-                    column: col,
-                    row: row,                        
+                this.clearedBlocks[i][col] = {
                     color: board.getCellValue(col, row),
                     coordinate: new Coordinate(col * 30, row * 30)
-                });
+                };
             }
         }
     }
 
-    updateState() {        
+    updateState(timestamp) {
         if (this.isCompleted) {
             return;
         }
 
-        let minY = 0;
-
-        for (var i = 0; i < this.clearedBlocks.length; i++) {                
-            const clearingBlock = this.clearedBlocks[i];
-
-            if (i === 0) {
-                minY = clearingBlock.coordinate.y;
-            } else {
-                minY = Math.min(clearingBlock.coordinate.y, minY);
-            }
-
-            const xTranslation = clearingBlock.column < 5 ? -1 : 1;
-            clearingBlock.coordinate = clearingBlock.coordinate.translate(xTranslation, 10);
-            this.clearingBlocksRotationDegrees.increment(0.5);
+        if ((timestamp - this.lastBlockRemovalTime) < 75) {
+            return;
         }
 
-        // if all blocks are off the screen
-        if (minY > 600) {
-            this.isCompleted = true;            
+        if (this.nextLeftBlockIndex < 0) {
+            this.isCompleted = true;
+            return;
+        }    
+
+        for (var i = 0; i < this.clearedBlocks.length; i++) {
+            this.clearedBlocks[i][this.nextLeftBlockIndex] = null;
+            this.clearedBlocks[i][this.nextRightBlockIndex] = null;            
         }
+
+        this.nextLeftBlockIndex--;
+        this.nextRightBlockIndex++;
+
+        this.lastBlockRemovalTime = timestamp;
     }
 
     draw(blockPainter) {
-        if (this.isCompleted) {
-            return;
-        }
+        for (var i = 0; i < this.clearedBlocks.length; i++) {
+            for (var col = 0; col < 10; col++) {                
+                const clearingBlock = this.clearedBlocks[i][col];
 
-        for (var i = 0; i < this.clearedBlocks.length; i++) {                
-            const clearingBlock = this.clearedBlocks[i];
-
-            blockPainter.drawBlockAtCoordinate(
-                clearingBlock.coordinate,
-                clearingBlock.color,
-                this.clearingBlocksRotationDegrees.value);            
+                if (clearingBlock !== null) {
+                    blockPainter.drawBlockAtCoordinate(
+                    clearingBlock.coordinate,
+                    clearingBlock.color);                
+                }            
+            }
         }
     }
 }
@@ -614,13 +630,12 @@ class MovePieceDownProcess {
     movePieceInterval = 1000;
     movePieceLastTimeStamp = 0;
 
-    constructor(currentPiece, onPieceLanded) {
-        this.currentPiece = currentPiece;
-        this.onPieceLanded = onPieceLanded;
+    constructor(currentPiece) {
+        this.currentPiece = currentPiece;        
     }
 
-    reset(timestamp) {
-        this.movePieceLastTimeStamp = timestamp;
+    reset() {
+        this.movePieceLastTimeStamp = 0;
     }
 
     updateState(timestamp) {
@@ -640,7 +655,6 @@ class MovePieceDownProcess {
             if (this.currentPiece.canMove(0,1)) {                
                 this.currentPiece.move(0,1);
             } else {                
-                this.onPieceLanded();
                 this.isCompleted = true;
             }
         }
@@ -649,8 +663,9 @@ class MovePieceDownProcess {
 
 const GameState = {
     None: 0,
-    Running: 1,    
-    GameOver: 2
+    Running: 1,
+    ClearingLines: 2,    
+    GameOver: 3
 }
 
 class BlockAttack
@@ -670,11 +685,14 @@ class BlockAttack
 
     inputQueue = [];
 
+    soundEffects = new SoundEffectLibrary();
+
     keyboardMonitorProcess = null;
     movePieceDownProcess = null;
-    clearingBlocksAnimation = null;
+    clearingLinesAnimation = null;
 
     gameState = GameState.None;    
+    lines = 0;
     
     constructor(rootElement) {
         this.rootElement = rootElement;
@@ -705,9 +723,13 @@ class BlockAttack
     tick(timestamp) {
         switch (this.gameState)
         {
-            case GameState.Running:
-                this.updateState(timestamp);
+            case GameState.Running:                
+                this.updateRunningState(timestamp);
                 this.drawBaseScreen();                
+                break;
+            case GameState.ClearingLines:                
+                this.updateClearingLinesState(timestamp);
+                this.drawBaseScreen();
                 break;
             case GameState.GameOver:                
                 this.drawBaseScreen();
@@ -719,25 +741,42 @@ class BlockAttack
     }
     
     drawBaseScreen() {
-        this.clearCanvas();
+        this.clearCanvas();        
         this.drawBoard();
         this.drawNextPiece();
+        this.drawLines();
     }
 
-    updateState(timestamp) {        
+    updateRunningState(timestamp) {
+        this.keyboardMonitorProcess.updateState(timestamp);
         this.processInputQueue();
         
         this.movePieceDownProcess.updateState(timestamp);
 
-        if (this.clearingBlocksAnimation !== null) {
-            this.clearingBlocksAnimation.updateState();
-
-            if (this.clearingBlocksAnimation.isCompleted) {
-                this.clearingBlocksAnimation = null;
-            }
+        if (this.movePieceDownProcess.isCompleted) {
+            this.mergeCurrentPiece();
         }
+    }
 
-        this.keyboardMonitorProcess.updateState(timestamp);
+    updateClearingLinesState(timestamp) {
+        this.clearingLinesAnimation.updateState(timestamp);
+
+        if (this.clearingLinesAnimation.isCompleted) { 
+            this.board.dropRows();           
+            this.startNewPiece();
+        }
+    }
+
+    startNewPiece() {
+        this.currentPiece = this.nextPiece.makeCurrentPiece(this.board);
+        this.nextPiece = new NextPiece(this.shapePicker.pickRandomShape());
+        this.movePieceDownProcess = new MovePieceDownProcess(this.currentPiece);
+
+        if (this.currentPiece.canMove(0, 0)) {
+            this.gameState = GameState.Running;
+        } else {
+            this.gameState = GameState.GameOver;
+        }
     }
 
     processInputQueue() {
@@ -747,29 +786,25 @@ class BlockAttack
         }
     }
 
-    onPieceLanded() {
-        this.mergeCurrentPiece();
+    resetMovePieceDownProcess() {
+        this.movePieceDownProcess.reset();
     }
 
     mergeCurrentPiece() {
         this.currentPiece.mergeToBoard();
-
-        if (this.board.getCompletedRows().length > 0) {            
-            this.clearingBlocksAnimation = new ClearingBlocksAnimation(this.board);
+        const completedRows = this.board.getCompletedRows();
+        
+        if (completedRows.length === 0) {            
+            this.soundEffects.pieceLanded.play();
+            this.startNewPiece();
+        } else {
+            this.clearingLinesAnimation = new ClearingLinesAnimation(this.board);
             this.board.clearCompletedRows();
+            this.soundEffects.linesCleared.play();
+            this.lines += completedRows.length;
+
+            this.gameState = GameState.ClearingLines;
         }
-
-        this.currentPiece = this.nextPiece.makeCurrentPiece(this.board);
-        this.nextPiece = new NextPiece(this.shapePicker.pickRandomShape());
-        this.movePieceDownProcess = new MovePieceDownProcess(this.currentPiece, () => this.onPieceLanded());
-
-        if (!this.currentPiece.canMove(0,0)) {
-            this.gameState = GameState.GameOver;            
-        }       
-    }
-
-    resetMovePieceDownProcess() {
-        this.movePieceDownProcess.reset(performance.now());
     }
 
     clearCanvas() {
@@ -777,9 +812,8 @@ class BlockAttack
     }
 
     drawGameOver() {
-        this.ctx.fillStyle = "rgb(0,0,0, 0.75)";
-        this.ctx.roundRect(40, 50, 400, 120, [20]);
-        this.ctx.fill();
+        this.ctx.fillStyle = "rgb(0,0,0)";
+        this.ctx.fillRect(40, 50, 400, 120);
 
         this.ctx.font = "bold 40px sans-serif";
         this.ctx.textBaseline = "top";
@@ -790,21 +824,34 @@ class BlockAttack
     drawBoard() {
         var blockPainter = new BlockPainter(this.ctx, new Coordinate(0, 0));
         this.board.draw(blockPainter);
-        this.currentPiece.draw(blockPainter);        
 
-        if (this.clearingBlocksAnimation !== null) {
-            this.clearingBlocksAnimation.draw(blockPainter);
+        if (this.gameState === GameState.ClearingLines) {
+            this.clearingLinesAnimation.draw(blockPainter);
+        } else {
+            this.currentPiece.draw(blockPainter);
         }
     }
 
     drawNextPiece() {
         this.ctx.font = "bold 20px sans-serif";
         this.ctx.fillStyle = "rgb(255,255,255)";
-        this.ctx.fillText("NEXT", 363, 35);
+        this.ctx.fillText("NEXT", 363, 140);
 
-        var nextPiecePainter = new BlockPainter(this.ctx, new Coordinate(330, 50));
+        var nextPiecePainter = new BlockPainter(this.ctx, new Coordinate(330, 150));
         this.nextPieceGrid.draw(nextPiecePainter);
         this.nextPiece.draw(nextPiecePainter);
+    }
+
+    drawLines() {        
+        this.ctx.font = "bold 20px sans-serif";
+        this.ctx.fillStyle = "rgb(255,255,255)";
+        this.ctx.fillText("LINES", 363, 35);
+        
+        this.ctx.fillStyle = "#222222";
+        this.ctx.fillRect(330, 45, 120, 30);
+
+        this.ctx.fillStyle = "rgb(255,255,255)";
+        this.ctx.fillText(this.lines, 363, 67);
     }
 }
 
@@ -816,7 +863,7 @@ class KeyboardState {
         window.addEventListener('keydown', (ev) => this.onKeydown(ev));
     }
 
-    onKeydown(ev) {
+    onKeydown(ev) {        
         this.keyDownStates[ev.code] = true;
     }
 
@@ -847,20 +894,17 @@ class KeyMonitor {
         const elapsedTime = timestamp - this.lastEventTimestamp;
 
         if (!keyboardState.isDown(this.keycode)) {
-            this.lastEventTimestamp = 0;
-            // todo: consider keyup events for shutoff of continuous actions            
+            this.lastEventTimestamp = 0;                       
             return;
         }
 
         if (this.lastEventTimestamp === 0 || elapsedTime >= this.repeatInterval) {
-            if (keyboardState.isDown(this.keycode)) {
-                if (this.autoReset) {
-                    keyboardState.reset(this.keycode);
-                }
-
-                this.lastEventTimestamp = performance.now();
-                this.eventCallback();
+            if (this.autoReset) {
+                keyboardState.reset(this.keycode);
             }
+
+            this.lastEventTimestamp = performance.now();
+            this.eventCallback();
         }
     }
 }
@@ -899,6 +943,7 @@ class MoveLeftCommand {
     execute(blockattack) {        
         if (blockattack.currentPiece.canMove(-1,0)) {
             blockattack.currentPiece.move(-1,0);
+            blockattack.soundEffects.pieceMoved.play();
         }
     }
 }
@@ -907,14 +952,16 @@ class MoveRightCommand {
     execute(blockattack) {
         if (blockattack.currentPiece.canMove(1,0)) {
             blockattack.currentPiece.move(1,0);
+            blockattack.soundEffects.pieceMoved.play();
         }
     }
 }
 
-class MoveDownCommand{
-    execute(blockattack) {  
+class MoveDownCommand {
+    execute(blockattack) {        
         if (blockattack.currentPiece.canMove(0,1)) {                    
             blockattack.currentPiece.move(0,1);
+            blockattack.soundEffects.pieceMoved.play();
             blockattack.resetMovePieceDownProcess();
         } else {
             blockattack.mergeCurrentPiece();
@@ -926,16 +973,42 @@ class RotateCommand {
     execute(blockattack) {
         if (blockattack.currentPiece.canRotate()) {
             blockattack.currentPiece.rotate();
+            blockattack.soundEffects.pieceRotated.play();
         }
     }
 }
 
 class DropCommand {
-    execute(blockattack) { 
+    execute(blockattack) {
         while (blockattack.currentPiece.canMove(0,1)) {
             blockattack.currentPiece.move(0,1);
         }
 
         blockattack.mergeCurrentPiece();    
     }
+}
+
+class SoundEffect {
+    isPlaying = false;
+
+    constructor(path) {
+        this.sound = new Audio(path);
+    }
+
+    play() {
+        if (this.isPlaying) {
+            this.sound.pause();
+            this.sound.currentTime = 0;
+        }
+
+        this.isPlaying = true;
+        this.sound.play();
+    }
+}
+
+class SoundEffectLibrary {
+    pieceLanded = new SoundEffect('wooden-thud-mono-6244.mp3');
+    linesCleared = new SoundEffect('flash-laser-gun-84914.mp3');
+    pieceMoved = new SoundEffect('confirm-tap-394001.mp3');
+    pieceRotated = new SoundEffect('ding-sound-246413.mp3')
 }
