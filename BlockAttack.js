@@ -264,21 +264,12 @@ class BlockPainter {
         this.drawBlockAtCoordinate(coordinate, fillStyle);
     }
 
-    drawBlockAtCoordinate(coordinate, fillStyle, rotatedDegrees) {
+    drawBlockAtCoordinate(coordinate, fillStyle) {
         this.ctx.fillStyle = fillStyle;
-        this.ctx.strokeStyle = 'rgb(25 25 25)';
+        this.ctx.strokeStyle = 'rgb(25 25 25)';        
         
-        if (rotatedDegrees === undefined) {            
-            this.ctx.fillRect(coordinate.x, coordinate.y, this.blockWidth, this.blockHeight);
-            this.ctx.strokeRect(coordinate.x, coordinate.y, this.blockWidth, this.blockHeight);
-        } else {
-            this.ctx.save();            
-            this.ctx.translate(coordinate.x + this.blockWidth / 2, coordinate.y + this.blockHeight / 2);
-            this.ctx.rotate(rotatedDegrees * Math.PI / 180);
-            this.ctx.fillRect(-this.blockWidth / 2, -this.blockHeight / 2, this.blockWidth, this.blockHeight);
-            this.ctx.strokeRect(-this.blockWidth / 2, -this.blockHeight / 2, this.blockWidth, this.blockHeight);
-            this.ctx.restore();
-        }
+        this.ctx.fillRect(coordinate.x, coordinate.y, this.blockWidth, this.blockHeight);
+        this.ctx.strokeRect(coordinate.x, coordinate.y, this.blockWidth, this.blockHeight);
     }
 }
 
@@ -346,7 +337,7 @@ class BlockGrid {
         this.rows = rows;
         
         this.grid = new Grid(columns, rows, initialValueFunc);        
-    }4
+    }
 4
     hasCell(col, row) {4
         return this.grid.hasCell(col, row);
@@ -762,7 +753,7 @@ class BlockAttack
         this.clearingLinesAnimation.updateState(timestamp);
 
         if (this.clearingLinesAnimation.isCompleted) { 
-            this.board.dropRows();           
+            this.board.dropRows();
             this.startNewPiece();
         }
     }
